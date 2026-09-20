@@ -30,7 +30,9 @@ services:
     volumes:
       - chdata:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      # именно 127.0.0.1, а не localhost: внутри контейнера localhost резолвится
+      # в ::1, а ClickHouse на IPv6 не слушает (listen_try=1, IPv6 в VM выключен)
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
       interval: 5s
       timeout: 3s
       retries: 10

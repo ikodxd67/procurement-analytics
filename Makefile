@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill
 
 venv:
 	py -3.12 -m venv .venv
@@ -12,6 +12,18 @@ up:
 
 down:
 	docker compose down
+
+airflow-up:
+	docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d --build
+
+airflow-down:
+	docker compose -f docker-compose.yml -f docker-compose.airflow.yml down
+
+airflow-logs:
+	docker compose -f docker-compose.yml -f docker-compose.airflow.yml logs -f airflow-scheduler airflow-dag-processor
+
+backfill:
+	.venv/Scripts/python -m procurement.jobs.cli backfill --entity contracts --from 2023-01 --to 2025-12
 
 migrate:
 	.venv/Scripts/alembic upgrade head

@@ -47,6 +47,26 @@ def safe_identifier(value: str, *, what: str = "идентификатор") -> 
 _DATE_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
 
 
+_PARTITION = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def safe_partition(value: str) -> str:
+    """Проверить имя партиции перед подстановкой в ALTER TABLE.
+
+    Отдельная проверка, а не safe_identifier: имена партиций бывают чисто
+    числовыми (202403), а идентификатор обязан начинаться с буквы.
+
+    Значение приходит из system.parts, то есть от самого ClickHouse, и всё
+    равно проверяется. Подстановка в текст запроса обязана быть проверенной
+    независимо от источника: сегодня источник свой, завтра кто-нибудь передаст
+    имя партиции параметром задачи.
+    """
+    if not _PARTITION.match(value):
+        msg = f"имя партиции {value!r} не похоже на безопасное"
+        raise ValueError(msg)
+    return value
+
+
 def as_uint(value: Any) -> int:
     if value is None or value == "":
         return 0

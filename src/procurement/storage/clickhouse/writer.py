@@ -26,7 +26,7 @@ from clickhouse_connect.driver import AsyncClient
 
 from procurement.ingest.models import Batch
 from procurement.logging import get_logger
-from procurement.storage.clickhouse.schema import EntitySpec, safe_identifier
+from procurement.storage.clickhouse.schema import EntitySpec, safe_identifier, safe_partition
 
 log = get_logger(__name__)
 
@@ -122,6 +122,7 @@ class PartitionSwapLoader:
 
         partitions = await self.touched_partitions()
         for partition in partitions:
+            safe_partition(partition)
             await self._client.command(
                 f"ALTER TABLE {self._spec.table} REPLACE PARTITION '{partition}' "
                 f"FROM {self._staging}"

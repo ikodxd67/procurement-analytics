@@ -35,3 +35,24 @@ jobs:
 
       - name: Unit tests
         run: pytest -m "not integration and not live" --cov=procurement --cov-report=term-missing
+
+  integration:
+    # Отдельная задача: этим тестам нужен Docker, они поднимают настоящие
+    # PostgreSQL и ClickHouse через testcontainers и идут заметно дольше.
+    # На ubuntu-раннере GitHub Docker уже есть, ставить ничего не надо.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+
+      - name: Integration tests
+        run: pytest -m integration -v

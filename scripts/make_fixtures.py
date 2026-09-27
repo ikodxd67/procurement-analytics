@@ -48,9 +48,10 @@ def contract_record(rng: random.Random, record_id: int) -> dict[str, Any]:
         "customer_bin": rng.choice(CUSTOMER_BINS),
         "contract_sum": rng.randrange(50_000, 20_000_000, 1000),
         "contract_sum_wnds": rng.randrange(50_000, 22_000_000, 1000),
+        "fakt_sum": rng.randrange(0, 20_000_000, 1000),
         "ref_contract_status_id": rng.choice([200, 210, 220, 230]),
-        "fin_year": rng.choice([2024, 2025, 2026]),
         "crdate": f"2026-0{rng.randint(1, 9)}-1{rng.randint(0, 9)} 10:00:00",
+        "sign_date": f"2026-0{rng.randint(1, 9)}-1{rng.randint(0, 9)} 15:00:00",
         "last_update_date": f"2026-0{rng.randint(1, 9)}-2{rng.randint(0, 8)} 12:00:00",
     }
 

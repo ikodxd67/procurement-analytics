@@ -24,8 +24,10 @@ from procurement.ingest.pipeline import Pipeline
 from procurement.ingest.rest_source import RestSource
 from procurement.ingest.retry import RetryPolicy
 from procurement.ingest.source import ENTITY_PATHS, Source
-from procurement.ingest.state import FileStateStore
+from procurement.ingest.state import FileStateStore, StateStore
 from procurement.logging import configure_logging, get_logger
+from procurement.storage.postgres.engine import build_engine, build_session_factory
+from procurement.storage.postgres.state_store import PostgresStateStore
 
 log = get_logger(__name__)
 
@@ -59,7 +61,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="страницы качать, записи считать, но никуда не писать",
     )
     parser.add_argument("--out", type=Path, default=None, help="писать записи в JSONL-файл")
-    parser.add_argument("--state", type=Path, default=Path("data/state.json"))
+    parser.add_argument(
+        "--state-backend",
+        choices=("file", "postgres"),
+        default="file",
+        help="где хранить позицию загрузки",
+    )
+    parser.add_argument(
+        "--state",
+        type=Path,
+        default=Path("data/state.json"),
+        help="файл состояния, если выбран backend file",
+    )
     parser.add_argument("--timeout", type=float, default=None, help="общий бюджет в секундах")
     parser.add_argument("--pretty-logs", action="store_true", help="логи для человека, не JSON")
     return parser
@@ -151,9 +164,19 @@ async def run(args: argparse.Namespace) -> int:
         minimum=settings.http.concurrency_min,
         maximum=settings.http.concurrency_max,
     )
+    # Подмена хранилища позиции ничего не требует от конвейера: он видит только
+    # протокол StateStore из двух методов. Ради этого протокол и делался узким.
+    state_store: StateStore
+    engine = None
+    if args.state_backend == "postgres":
+        engine = build_engine(settings.postgres)
+        state_store = PostgresStateStore(build_session_factory(engine))
+    else:
+        state_store = FileStateStore(args.state)
+
     pipeline = Pipeline(
         source=source,
-        state=FileStateStore(args.state),
+        state=state_store,
         limiter=limiter,
         handler=handler,
         retry_policy=RetryPolicy(
@@ -180,6 +203,8 @@ async def run(args: argparse.Namespace) -> int:
             )
     finally:
         await source.aclose()
+        if engine is not None:
+            await engine.dispose()
 
     log.info(
         "cli.result",

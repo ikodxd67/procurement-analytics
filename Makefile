@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift
 
 venv:
 	py -3.12 -m venv .venv
@@ -12,6 +12,15 @@ up:
 
 down:
 	docker compose down
+
+migrate:
+	.venv/Scripts/alembic upgrade head
+
+migration:
+	.venv/Scripts/alembic revision --autogenerate -m "$(m)"
+
+check-drift:
+	.venv/Scripts/alembic check
 
 fmt:
 	.venv/Scripts/ruff format src tests

@@ -87,7 +87,31 @@ ORDER BY (customer_bin, id)
 # миллиона договоров разойдётся с бухгалтерией в последних разрядах. Для денег
 # это недопустимо, а выигрыша в скорости на наших объёмах нет.
 
-ALL_DDL: tuple[str, ...] = (CONTRACTS_DDL, LOTS_DDL)
+MART_CONTRACTS_MONTHLY_DDL = """
+CREATE TABLE IF NOT EXISTS mart_contracts_monthly
+(
+    month        Date,
+    customer_bin String,
+    contracts    UInt64,
+    total        Decimal(18, 2)
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(month)
+ORDER BY (month, customer_bin)
+"""
+
+# Почему витрина, а не материализованное представление. Представление
+# срабатывает на INSERT в исходную таблицу, а бэкфилл кладёт данные через
+# ALTER TABLE ... REPLACE PARTITION — это не INSERT, и представление его не
+# увидит. Пересчёт заданием после загрузки надёжнее и виден в Airflow как
+# отдельный шаг.
+#
+# Почему витрина именно помесячная. Первой мыслью была витрина по паре
+# «заказчик + поставщик». Проверка показала 1 781 982 уникальных пары на
+# 1 800 000 договоров — сжатие в 1.01 раза, то есть никакого. Помесячная по
+# заказчику даёт 6000 x 36 строк вместо 1.8 млн.
+
+ALL_DDL: tuple[str, ...] = (CONTRACTS_DDL, LOTS_DDL, MART_CONTRACTS_MONTHLY_DDL)
 
 
 async def apply_schema(client: AsyncClient) -> None:

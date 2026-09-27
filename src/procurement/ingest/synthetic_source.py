@@ -27,6 +27,14 @@ from procurement.ingest.models import Page, RawRecord
 CUSTOMERS = 6000
 SUPPLIERS = 15000
 
+# Форма дерева классификатора. Держится здесь и в scripts/seed_reference.py
+# согласованно: коды лотов обязаны попадать в существующие листья, иначе
+# соединение со справочником потеряет строки.
+CLASSIFIER_SECTIONS = 20
+CLASSIFIER_GROUPS = 5
+CLASSIFIER_SUBGROUPS = 5
+CLASSIFIER_ITEMS = 8
+
 LOT_NAMES = (
     "Бумага офисная А4",
     "Услуги по техническому обслуживанию",
@@ -106,6 +114,7 @@ class SyntheticSource:
                 "customer_bin": customer,
                 "trd_buy_number_anno": f"{rng.randrange(400000, 500000)}-1",
                 "name_ru": rng.choice(LOT_NAMES),
+                "enstru_code": self._enstru_code(rng),
                 "count": rng.randint(1, 500),
                 "amount": rng.randrange(10_000, 5_000_000, 500),
                 "last_update_date": updated.strftime("%Y-%m-%d %H:%M:%S"),
@@ -126,6 +135,19 @@ class SyntheticSource:
             "sign_date": (created + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
             "last_update_date": updated.strftime("%Y-%m-%d %H:%M:%S"),
         }
+
+    @staticmethod
+    def _enstru_code(rng: random.Random) -> str:
+        """Код листа классификатора вида 07.3.2.041.
+
+        Совпадает по форме с деревом, которое раскладывает
+        scripts/seed_reference.py: четыре уровня, последний — лист.
+        """
+        section = rng.randrange(1, CLASSIFIER_SECTIONS + 1)
+        group = rng.randrange(1, CLASSIFIER_GROUPS + 1)
+        subgroup = rng.randrange(1, CLASSIFIER_SUBGROUPS + 1)
+        item = rng.randrange(1, CLASSIFIER_ITEMS + 1)
+        return f"{section:02d}.{group}.{subgroup}.{item:03d}"
 
     async def aclose(self) -> None:
         return

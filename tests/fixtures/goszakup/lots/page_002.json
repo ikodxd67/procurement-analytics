@@ -1,0 +1,62 @@
+{
+  "total": 15,
+  "limit": 5,
+  "next_page": "/lots?page=next&search_after=836809",
+  "items": [
+    {
+      "id": 836805,
+      "lot_number": "4034376-ОИ1",
+      "ref_lot_status_id": 220,
+      "customer_bin": "900340000303",
+      "trd_buy_number_anno": "469119-1",
+      "name_ru": "Бумага офисная А4",
+      "count": 25,
+      "amount": 1773000,
+      "last_update_date": "2026-08-21 12:00:00"
+    },
+    {
+      "id": 836806,
+      "lot_number": "4663100-ОИ1",
+      "ref_lot_status_id": 230,
+      "customer_bin": "900140000101",
+      "trd_buy_number_anno": "425532-1",
+      "name_ru": "Мебель офисная",
+      "count": 292,
+      "amount": 3663000,
+      "last_update_date": "2026-09-21 12:00:00"
+    },
+    {
+      "id": 836807,
+      "lot_number": "4538570-ОИ4",
+      "ref_lot_status_id": 220,
+      "customer_bin": "900240000202",
+      "trd_buy_number_anno": "482942-1",
+      "name_ru": "Мебель офисная",
+      "count": 474,
+      "amount": 200000,
+      "last_update_date": "2026-05-23 12:00:00"
+    },
+    {
+      "id": 836808,
+      "lot_number": "4366668-ОИ3",
+      "ref_lot_status_id": 210,
+      "customer_bin": "900140000101",
+      "trd_buy_number_anno": "443746-1",
+      "name_ru": "Мебель офисная",
+      "count": 200,
+      "amount": 1496500,
+      "last_update_date": "2026-06-27 12:00:00"
+    },
+    {
+      "id": 836809,
+      "lot_number": "4516352-ОИ1",
+      "ref_lot_status_id": 210,
+      "customer_bin": "900340000303",
+      "trd_buy_number_anno": "493020-1",
+      "name_ru": "Мебель офисная",
+      "count": 379,
+      "amount": 606000,
+      "last_update_date": "2026-08-26 12:00:00"
+    }
+  ]
+}

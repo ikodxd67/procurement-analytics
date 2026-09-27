@@ -1,0 +1,72 @@
+{
+  "total": 15,
+  "limit": 5,
+  "next_page": "/contract?page=next&search_after=4998009",
+  "items": [
+    {
+      "id": 4998005,
+      "contract_number": "333",
+      "trd_buy_number_anno": "440328-1",
+      "supplier_biin": "950140000111",
+      "customer_bin": "900140000101",
+      "contract_sum": 15212000,
+      "contract_sum_wnds": 18702000,
+      "ref_contract_status_id": 200,
+      "fin_year": 2024,
+      "crdate": "2026-09-13 10:00:00",
+      "last_update_date": "2026-04-27 12:00:00"
+    },
+    {
+      "id": 4998006,
+      "contract_number": "324",
+      "trd_buy_number_anno": "462918-1",
+      "supplier_biin": "950340000333",
+      "customer_bin": "900340000303",
+      "contract_sum": 7103000,
+      "contract_sum_wnds": 5997000,
+      "ref_contract_status_id": 220,
+      "fin_year": 2026,
+      "crdate": "2026-03-11 10:00:00",
+      "last_update_date": "2026-02-25 12:00:00"
+    },
+    {
+      "id": 4998007,
+      "contract_number": "231",
+      "trd_buy_number_anno": "451051-1",
+      "supplier_biin": "950340000333",
+      "customer_bin": "900340000303",
+      "contract_sum": 14956000,
+      "contract_sum_wnds": 2434000,
+      "ref_contract_status_id": 230,
+      "fin_year": 2024,
+      "crdate": "2026-02-16 10:00:00",
+      "last_update_date": "2026-08-26 12:00:00"
+    },
+    {
+      "id": 4998008,
+      "contract_number": "163",
+      "trd_buy_number_anno": "450064-1",
+      "supplier_biin": "950440000444",
+      "customer_bin": "900340000303",
+      "contract_sum": 18003000,
+      "contract_sum_wnds": 19204000,
+      "ref_contract_status_id": 210,
+      "fin_year": 2025,
+      "crdate": "2026-09-12 10:00:00",
+      "last_update_date": "2026-02-27 12:00:00"
+    },
+    {
+      "id": 4998009,
+      "contract_number": "371",
+      "trd_buy_number_anno": "447836-1",
+      "supplier_biin": "950440000444",
+      "customer_bin": "900140000101",
+      "contract_sum": 2134000,
+      "contract_sum_wnds": 11859000,
+      "ref_contract_status_id": 200,
+      "fin_year": 2025,
+      "crdate": "2026-07-10 10:00:00",
+      "last_update_date": "2026-07-28 12:00:00"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "total": 15,
+  "limit": 5,
+  "next_page": null,
+  "items": [
+    {
+      "id": 836810,
+      "lot_number": "4400517-ОИ7",
+      "ref_lot_status_id": 220,
+      "customer_bin": "900240000202",
+      "trd_buy_number_anno": "470158-1",
+      "name_ru": "Услуги по техническому обслуживанию",
+      "count": 390,
+      "amount": 2616500,
+      "last_update_date": "2026-02-27 12:00:00"
+    },
+    {
+      "id": 836811,
+      "lot_number": "4474723-ОИ3",
+      "ref_lot_status_id": 210,
+      "customer_bin": "900240000202",
+      "trd_buy_number_anno": "479151-1",
+      "name_ru": "Программное обеспечение",
+      "count": 439,
+      "amount": 2999500,
+      "last_update_date": "2026-01-24 12:00:00"
+    },
+    {
+      "id": 836812,
+      "lot_number": "4033643-ОИ7",
+      "ref_lot_status_id": 240,
+      "customer_bin": "900340000303",
+      "trd_buy_number_anno": "492545-1",
+      "name_ru": "Мебель офисная",
+      "count": 362,
+      "amount": 3178500,
+      "last_update_date": "2026-08-28 12:00:00"
+    },
+    {
+      "id": 836813,
+      "lot_number": "4295372-ОИ7",
+      "ref_lot_status_id": 220,
+      "customer_bin": "900240000202",
+      "trd_buy_number_anno": "428267-1",
+      "name_ru": "Мебель офисная",
+      "count": 5,
+      "amount": 2957500,
+      "last_update_date": "2026-07-24 12:00:00"
+    },
+    {
+      "id": 836814,
+      "lot_number": "4565702-ОИ5",
+      "ref_lot_status_id": 230,
+      "customer_bin": "900140000101",
+      "trd_buy_number_anno": "463053-1",
+      "name_ru": "Программное обеспечение",
+      "count": 478,
+      "amount": 1136000,
+      "last_update_date": "2026-04-28 12:00:00"
+    }
+  ]
+}

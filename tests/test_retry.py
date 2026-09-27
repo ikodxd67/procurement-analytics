@@ -1,13 +1,12 @@
 """Тесты политики повторов.
 
-Настоящих пауз не ждём: asyncio.sleep подменяется и записывает, сколько его
-просили спать. Так тест проверяет расчёт пауз и при этом идёт миллисекунды.
+Настоящих пауз не ждём: фикстура slept из conftest подменяет asyncio.sleep и
+записывает, сколько его просили спать. Тест проверяет расчёт, а не терпение.
 """
 
 from __future__ import annotations
 
 import random
-from typing import Any
 
 import pytest
 
@@ -31,18 +30,6 @@ class FeedbackSpy:
 
     def on_success(self) -> None:
         self.successes += 1
-
-
-@pytest.fixture
-def slept(monkeypatch: pytest.MonkeyPatch) -> list[float]:
-    """Подменяет asyncio.sleep и копит запрошенные длительности."""
-    recorded: list[float] = []
-
-    async def fake_sleep(delay: float, *args: Any, **kwargs: Any) -> None:
-        recorded.append(delay)
-
-    monkeypatch.setattr("procurement.ingest.retry.asyncio.sleep", fake_sleep)
-    return recorded
 
 
 # --- расчёт паузы ------------------------------------------------------------

@@ -91,18 +91,45 @@ class PostgresStateStore:
         async with session_scope(self._factory) as session:
             await session.execute(statement)
 
+    async def get_watermark(self, entity: str) -> datetime | None:
+        """До какой даты изменений данные уже загружены.
+
+        None означает «ещё ни разу не синхронизировались» — инкрементальный
+        прогон в этом случае возьмёт всё, что отдаст источник.
+        """
+        async with self._factory() as session:
+            found = await session.scalars(
+                select(SyncState.watermark).where(
+                    SyncState.source == self._source,
+                    SyncState.entity == entity,
+                )
+            )
+            return found.first()
+
     async def set_watermark(self, entity: str, watermark: datetime) -> None:
         """Отметить, до какой даты изменений данные загружены.
 
-        Понадобится на третьем этапе: инкрементальная синхронизация идёт не по
-        курсору, а по дате последнего изменения записи.
+        Вставка или обновление, а не просто UPDATE. Первая версия делала
+        UPDATE, и это молча не работало: строки в sync_state ещё не было, ведь
+        бэкфилл ведёт своё временное состояние и сюда ничего не пишет. UPDATE
+        менял ноль строк, ошибки не возникало, водяной знак не сохранялся.
+        Поймалось только повторным запуском синхронизации.
         """
+        statement = insert(SyncState).values(
+            source=self._source,
+            entity=entity,
+            watermark=watermark,
+            updated_at=datetime.now(UTC),
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=[SyncState.source, SyncState.entity],
+            set_={
+                "watermark": statement.excluded.watermark,
+                "updated_at": statement.excluded.updated_at,
+            },
+        )
         async with session_scope(self._factory) as session:
-            await session.execute(
-                update(SyncState)
-                .where(SyncState.source == self._source, SyncState.entity == entity)
-                .values(watermark=watermark)
-            )
+            await session.execute(statement)
 
 
 class RunJournal:

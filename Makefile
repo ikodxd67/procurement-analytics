@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql
 
 venv:
 	py -3.12 -m venv .venv
@@ -21,6 +21,13 @@ airflow-down:
 
 airflow-logs:
 	docker compose -f docker-compose.yml -f docker-compose.airflow.yml logs -f airflow-scheduler airflow-dag-processor
+
+seed-reference:
+	.venv/Scripts/python scripts/seed_reference.py
+
+bench-sql:
+	.venv/Scripts/python scripts/load_postgres_facts.py
+	.venv/Scripts/python scripts/bench_sql.py
 
 backfill:
 	.venv/Scripts/python -m procurement.jobs.cli backfill --entity contracts --from 2023-01 --to 2025-12

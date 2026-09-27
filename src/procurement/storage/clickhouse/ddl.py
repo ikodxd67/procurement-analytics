@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS lots
     customer_bin        String,
     trd_buy_number_anno String,
     name_ru             String,
+    -- Код товарной позиции по классификатору ЕНС ТРУ. В API у лота это список
+    -- (enstruList), здесь берётся первый элемент — основная позиция. Упрощение
+    -- сознательное: аналитике нужна одна позиция на лот, иначе любая сумма по
+    -- категории задвоится на лотах с несколькими кодами.
+    enstru_code         String,
     count               Decimal(18, 3),
     amount              Decimal(18, 2),
     last_update_date    DateTime,

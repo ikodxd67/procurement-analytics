@@ -152,6 +152,7 @@ LOTS = EntitySpec(
         Column("customer_bin", "customer_bin", as_str),
         Column("trd_buy_number_anno", "trd_buy_number_anno", as_str),
         Column("name_ru", "name_ru", as_str),
+        Column("enstru_code", "enstru_code", as_str),
         Column("count", "count", as_decimal),
         Column("amount", "amount", as_decimal),
         Column("last_update_date", "last_update_date", as_datetime),

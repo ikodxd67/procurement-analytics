@@ -25,6 +25,7 @@ from airflow.sdk import dag, task
 
 from procurement.jobs.backfill import backfill_month
 from procurement.jobs.context import job_context
+from procurement.jobs.marts import refresh_monthly_mart
 
 DEFAULT_ARGS = {
     "retries": 3,
@@ -83,7 +84,40 @@ def backfill_contracts() -> None:
 
         return asyncio.run(run())
 
-    load_month()
+    @task
+    def refresh_mart(
+        loaded: dict[str, Any], data_interval_start: datetime | None = None, **_: Any
+    ) -> dict[str, Any]:
+        """Пересчитать витрину за загруженный месяц.
+
+        Отдельная задача, а не хвост предыдущей: в интерфейсе видно, что
+        именно сломалось — загрузка или пересчёт. И повторять при сбое надо
+        только пересчёт, а он занимает доли секунды против нескольких минут
+        на загрузку.
+
+        Пересчитывается один месяц, а не вся витрина: трогать три года ради
+        одного изменившегося месяца незачем.
+        """
+        if data_interval_start is None:
+            msg = "Airflow не передал начало интервала"
+            raise ValueError(msg)
+
+        month = date(data_interval_start.year, data_interval_start.month, 1)
+
+        async def run() -> dict[str, Any]:
+            async with job_context() as context:
+                result = await refresh_monthly_mart(context, month=month)
+                return {
+                    "month": loaded["month"],
+                    "table": result.table,
+                    "partitions": result.months,
+                    "rows": result.rows,
+                    "seconds": round(result.duration_s, 2),
+                }
+
+        return asyncio.run(run())
+
+    refresh_mart(load_month())
 
 
 backfill_contracts()

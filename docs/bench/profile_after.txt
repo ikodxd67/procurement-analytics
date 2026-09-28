@@ -1,0 +1,32 @@
+срезов всего: 2357
+  подготовка стенда: 941 (39.9%)
+  прогон конвейера : 1416 (60.1%)
+
+=== доли внутри прогона, по областям ===
+  76.3%   1080  служебный код asyncio
+  34.9%    494  драйвер ClickHouse: сеть и сериализация
+  26.0%    368  сборка строк для ClickHouse (to_rows)
+  11.2%    158  разбор дат (as_datetime)
+   9.0%    127  модели pydantic (Page/Batch)
+
+=== топ-20 листьев ===
+   8.2%    116  fetch_page (profile_loader.py:96)
+   7.3%    103  as_datetime (procurement\storage\clickhouse\schema.py:125)
+   6.9%     97  to_row (procurement\storage\clickhouse\schema.py:170)
+   6.5%     92  __init__ (pydantic\main.py:263)
+   5.3%     75  _write_column_binary (clickhouse_connect\datatypes\numeric.py:401)
+   4.5%     64  as_decimal (procurement\storage\clickhouse\schema.py:91)
+   3.8%     54  _write_column_binary (clickhouse_connect\datatypes\temporal.py:215)
+   3.3%     47  _write_to_self (asyncio\proactor_events.py:831)
+   2.5%     35  as_datetime (procurement\storage\clickhouse\schema.py:118)
+   2.1%     30  _worker (concurrent\futures\thread.py:90)
+   2.0%     28  _poll (asyncio\windows_events.py:774)
+   2.0%     28  _consume (procurement\ingest\pipeline.py:332)
+   1.9%     27  _utcnow (procurement\ingest\models.py:21)
+   1.8%     26  send (asyncio\windows_events.py:542)
+   1.8%     25  _row_block_data (clickhouse_connect\driver\insert.py:150)
+   1.6%     23  _write_column_binary (clickhouse_connect\datatypes\string.py:51)
+   1.3%     18  as_uint (procurement\storage\clickhouse\schema.py:74)
+   1.2%     17  data_received (aiohttp\client_proto.py:326)
+   1.1%     15  flush (lz4\frame\__init__.py:278)
+   0.9%     13  _produce (procurement\ingest\pipeline.py:308)

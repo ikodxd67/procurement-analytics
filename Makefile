@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json
 
 venv:
 	py -3.12 -m venv .venv
@@ -60,6 +60,16 @@ lint:
 
 type:
 	.venv/Scripts/mypy
+
+profile:
+	.venv/Scripts/py-spy record --subprocesses --rate 250 --format raw -o docs/bench/loader_folded_after.txt -- .venv/Scripts/python scripts/profile_loader.py --records 200000
+	.venv/Scripts/python scripts/fold_summary.py docs/bench/loader_folded_after.txt
+
+profile-debug:
+	.venv/Scripts/python scripts/profile_loader.py --records 50000 --debug --slow-callback-s 0.02
+
+bench-json:
+	.venv/Scripts/python scripts/bench_json.py
 
 test-unit:
 	.venv/Scripts/pytest -m "not integration and not live"

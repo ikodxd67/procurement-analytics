@@ -66,10 +66,28 @@ def test_as_decimal_does_not_inherit_float_noise() -> None:
         (None, UNKNOWN_DATE),
         ("", UNKNOWN_DATE),
         ("10.01.2026", UNKNOWN_DATE),
+        # Ниже — то, что появилось вместе с переходом на fromisoformat.
+        # Дробные доли секунды прежняя версия не принимала и отдавала
+        # UNKNOWN_DATE, то есть теряла настоящую дату.
+        ("2026-01-10 10:30:00.123456", datetime(2026, 1, 10, 10, 30, 0, 123456, tzinfo=UTC)),
+        # Смещение переводится в UTC, а не затирается. Затереть означало бы
+        # сдвинуть время на величину смещения и не заметить этого.
+        ("2026-01-10T15:30:00+05:00", datetime(2026, 1, 10, 10, 30, tzinfo=UTC)),
+        ("2026-01-10T10:30:00Z", datetime(2026, 1, 10, 10, 30, tzinfo=UTC)),
     ],
 )
 def test_as_datetime(raw: object, expected: datetime) -> None:
     assert as_datetime(raw) == expected
+
+
+def test_as_datetime_keeps_the_moment_across_offsets() -> None:
+    """Одно и то же мгновение, записанное в разных поясах, даёт одно значение.
+
+    Проверка не про формат, а про смысл: ReplacingMergeTree выбирает версию
+    записи по last_update_date, и сдвиг на пять часов из-за пояса означал бы
+    выбор не той версии.
+    """
+    assert as_datetime("2026-01-10T15:30:00+05:00") == as_datetime("2026-01-10 10:30:00")
 
 
 def test_missing_field_does_not_lose_the_record() -> None:

@@ -1,0 +1,39 @@
+python 3.12.10, orjson 3.12.0
+медиана из 7 прогонов
+
+=== contracts, страница 50 записей, 18.1 КиБ ===
+json.loads(bytes)                               0.077 мс    230.1 МБ/с    1.53 мкс/зап
+json.loads(str)                                 0.080 мс    220.9 МБ/с    1.60 мкс/зап
+orjson.loads(bytes)                             0.034 мс    514.3 МБ/с    0.69 мкс/зап
+orjson.loads(str)                               0.033 мс    540.0 МБ/с    0.65 мкс/зап
+json.dumps + encode (ensure_ascii=False)        0.088 мс    201.7 МБ/с    1.75 мкс/зап
+json.dumps + encode (ensure_ascii=True)         0.069 мс    257.6 МБ/с    1.37 мкс/зап
+orjson.dumps                                    0.013 мс   1406.0 МБ/с    0.25 мкс/зап
+
+=== contracts, страница 500 записей, 179.7 КиБ ===
+json.loads(bytes)                               0.793 мс    221.4 МБ/с    1.59 мкс/зап
+json.loads(str)                                 0.739 мс    237.6 МБ/с    1.48 мкс/зап
+orjson.loads(bytes)                             0.549 мс    320.0 МБ/с    1.10 мкс/зап
+orjson.loads(str)                               0.527 мс    333.0 МБ/с    1.05 мкс/зап
+json.dumps + encode (ensure_ascii=False)        0.793 мс    221.3 МБ/с    1.59 мкс/зап
+json.dumps + encode (ensure_ascii=True)         0.669 мс    262.2 МБ/с    1.34 мкс/зап
+orjson.dumps                                    0.109 мс   1608.9 МБ/с    0.22 мкс/зап
+
+=== lots, страница 50 записей, 15.0 КиБ ===
+json.loads(bytes)                               0.092 мс    159.1 МБ/с    1.84 мкс/зап
+json.loads(str)                                 0.093 мс    156.9 МБ/с    1.87 мкс/зап
+orjson.loads(bytes)                             0.028 мс    516.7 МБ/с    0.57 мкс/зап
+orjson.loads(str)                               0.029 мс    512.2 МБ/с    0.57 мкс/зап
+json.dumps + encode (ensure_ascii=False)        0.088 мс    165.6 МБ/с    1.77 мкс/зап
+json.dumps + encode (ensure_ascii=True)         0.064 мс    228.6 МБ/с    1.28 мкс/зап
+orjson.dumps                                    0.010 мс   1413.6 МБ/с    0.21 мкс/зап
+
+=== lots, страница 500 записей, 150.0 КиБ ===
+json.loads(bytes)                               0.901 мс    162.7 МБ/с    1.80 мкс/зап
+json.loads(str)                                 0.819 мс    178.8 МБ/с    1.64 мкс/зап
+orjson.loads(bytes)                             0.390 мс    375.5 МБ/с    0.78 мкс/зап
+orjson.loads(str)                               0.375 мс    390.6 МБ/с    0.75 мкс/зап
+json.dumps + encode (ensure_ascii=False)        0.825 мс    177.6 МБ/с    1.65 мкс/зап
+json.dumps + encode (ensure_ascii=True)         0.611 мс    239.6 МБ/с    1.22 мкс/зап
+orjson.dumps                                    0.091 мс   1610.8 МБ/с    0.18 мкс/зап
+

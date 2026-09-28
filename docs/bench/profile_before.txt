@@ -1,0 +1,32 @@
+срезов всего: 3472
+  подготовка стенда: 940 (27.1%)
+  прогон конвейера : 2532 (72.9%)
+
+=== доли внутри прогона, по областям ===
+  86.0%   2177  служебный код asyncio
+  58.9%   1491  сборка строк для ClickHouse (to_rows)
+  51.2%   1296  разбор дат (as_datetime)
+  19.8%    501  драйвер ClickHouse: сеть и сериализация
+   5.9%    149  модели pydantic (Page/Batch)
+
+=== топ-20 листьев ===
+   8.8%    222  as_datetime (procurement\storage\clickhouse\schema.py:102)
+   4.7%    119  getlocale (locale.py:595)
+   4.0%    101  _strptime (_strptime.py:430)
+   3.8%     95  __init__ (pydantic\main.py:263)
+   3.7%     94  _write_column_binary (clickhouse_connect\datatypes\numeric.py:401)
+   3.7%     94  to_row (procurement\storage\clickhouse\schema.py:134)
+   3.1%     78  fetch_page (profile_loader.py:96)
+   2.8%     70  _strptime (_strptime.py:449)
+   2.3%     59  _strptime (_strptime.py:397)
+   2.2%     55  _write_column_binary (clickhouse_connect\datatypes\temporal.py:215)
+   2.1%     52  _strptime (_strptime.py:466)
+   1.9%     49  as_decimal (procurement\storage\clickhouse\schema.py:91)
+   1.9%     49  _utcnow (procurement\ingest\models.py:21)
+   1.9%     47  _strptime (_strptime.py:403)
+   1.6%     41  _write_to_self (asyncio\proactor_events.py:831)
+   1.5%     38  _strptime_datetime (_strptime.py:653)
+   1.3%     34  _poll (asyncio\windows_events.py:774)
+   1.3%     33  _strptime (_strptime.py:450)
+   1.3%     33  _worker (concurrent\futures\thread.py:90)
+   1.3%     32  _strptime_datetime (_strptime.py:664)

@@ -21,6 +21,7 @@ from procurement.ingest.synthetic_source import SyntheticSource
 from procurement.jobs.backfill import backfill_month
 from procurement.jobs.context import SYNTHETIC_RECORDS_PER_MONTH, job_context
 from procurement.jobs.incremental import sync_incremental
+from procurement.jobs.marts import refresh_monthly_mart
 from procurement.logging import configure_logging, get_logger
 
 log = get_logger(__name__)
@@ -69,6 +70,14 @@ def build_parser() -> argparse.ArgumentParser:
     inc.add_argument("--entity", default="contracts", choices=("contracts", "lots"))
     inc.add_argument("--month", type=parse_month, required=True)
     inc.add_argument("--records", type=int, default=2000)
+
+    marts = sub.add_parser("marts", help="пересчитать витрины")
+    marts.add_argument(
+        "--month",
+        type=parse_month,
+        default=None,
+        help="пересчитать один месяц вместо всех",
+    )
 
     return parser
 
@@ -122,12 +131,25 @@ async def run_incremental(args: argparse.Namespace) -> int:
     return 0
 
 
+async def run_marts(args: argparse.Namespace) -> int:
+    async with job_context() as context:
+        result = await refresh_monthly_mart(context, month=args.month)
+
+    print(f"Витрина {result.table}")
+    print(f"  строк    : {result.rows}")
+    print(f"  партиций : {len(result.months)}")
+    print(f"  время    : {result.duration_s:.2f} с")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(get_settings().log_level, pretty=args.pretty_logs)
 
     if args.command == "backfill":
         return asyncio.run(run_backfill(args))
+    if args.command == "marts":
+        return asyncio.run(run_marts(args))
     return asyncio.run(run_incremental(args))
 
 

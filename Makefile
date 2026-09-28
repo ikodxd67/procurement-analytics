@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts
 
 venv:
 	py -3.12 -m venv .venv
@@ -21,6 +21,15 @@ airflow-down:
 
 airflow-logs:
 	docker compose -f docker-compose.yml -f docker-compose.airflow.yml logs -f airflow-scheduler airflow-dag-processor
+
+api:
+	.venv/Scripts/uvicorn procurement.api.app:app --reload --port 8000
+
+bench-api:
+	.venv/Scripts/python scripts/bench_api.py
+
+refresh-marts:
+	.venv/Scripts/python -m procurement.jobs.cli marts
 
 seed-reference:
 	.venv/Scripts/python scripts/seed_reference.py

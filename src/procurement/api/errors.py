@@ -97,7 +97,7 @@ def install_error_handlers(app: FastAPI) -> None:
             for item in error.errors()
         ]
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=_body("validation_failed", "Параметры запроса не прошли проверку", details),
         )
 

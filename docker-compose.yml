@@ -31,7 +31,10 @@ services:
       - chdata:/var/lib/clickhouse
     healthcheck:
       # именно 127.0.0.1, а не localhost: внутри контейнера localhost резолвится
-      # в ::1, а ClickHouse на IPv6 не слушает (listen_try=1, IPv6 в VM выключен)
+      # в ::1 первым, а ClickHouse слушает только IPv4 — занять [::]:8123 ему не
+      # дало ядро («Address family for hostname not supported»), и из-за
+      # listen_try=1 это осталось предупреждением. Адрес ::1 на loopback при
+      # этом существует, так что дело не в отключённом IPv6.
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
       interval: 5s
       timeout: 3s

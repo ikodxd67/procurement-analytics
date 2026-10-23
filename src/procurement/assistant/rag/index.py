@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -128,5 +128,5 @@ async def replace_source(
         unchanged=len(chunks) - len(changed),
         deleted=len(stale),
     )
-    log.info("rag.index", **result.__dict__)
+    log.info("rag.index", **asdict(result))
     return result

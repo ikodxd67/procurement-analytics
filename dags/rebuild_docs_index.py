@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 from datetime import timedelta
 from typing import Any
 
@@ -48,7 +49,7 @@ def rebuild_docs_index_dag() -> None:
         async def run() -> list[dict[str, Any]]:
             async with job_context(ensure_schema=False) as context:
                 results = await rebuild_docs_index(context)
-            return [r.__dict__ for r in results]
+            return [asdict(r) for r in results]
 
         return asyncio.run(run())
 

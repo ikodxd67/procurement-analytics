@@ -21,22 +21,52 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from clickhouse_connect.driver import AsyncClient
 from clickhouse_connect.driver.exceptions import ClickHouseError
 
-from procurement.api.errors import StorageUnavailableError
+from procurement.api.errors import BadRequestError, StorageUnavailableError
 from procurement.logging import get_logger
 
 log = get_logger(__name__)
+
+
+# Предел ширины периода. Пять лет закрывают любой осмысленный запрос, а
+# случайный date_from=1900 перестаёт быть способом устроить полный перебор.
+MAX_PERIOD_DAYS = 366 * 5
+
+DEFAULT_PERIOD_DAYS = 365
 
 
 @dataclass(frozen=True, slots=True)
 class Period:
     date_from: date
     date_to: date
+
+    @classmethod
+    def resolve(
+        cls, date_from: date | None, date_to: date | None, *, today: date | None = None
+    ) -> Period:
+        """Период по необязательным границам — общий для API и инструментов агента.
+
+        Правила одни для всех, кто ходит в витрины: иначе агент получил бы
+        лазейку в полный перебор, закрытую в API.
+        """
+        resolved_to = date_to or today or date.today()
+        resolved_from = date_from or (resolved_to - timedelta(days=DEFAULT_PERIOD_DAYS))
+
+        if resolved_from > resolved_to:
+            msg = f"Начало периода {resolved_from} позже его конца {resolved_to}"
+            raise BadRequestError(msg)
+
+        span = (resolved_to - resolved_from).days
+        if span > MAX_PERIOD_DAYS:
+            msg = f"Период в {span} дней шире допустимых {MAX_PERIOD_DAYS}"
+            raise BadRequestError(msg)
+
+        return cls(date_from=resolved_from, date_to=resolved_to)
 
 
 @dataclass(frozen=True, slots=True)

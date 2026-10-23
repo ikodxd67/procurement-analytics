@@ -2,6 +2,7 @@
 
     python -m procurement.jobs.cli backfill --entity contracts --from 2023-01 --to 2025-12
     python -m procurement.jobs.cli incremental --entity contracts --month 2025-06
+    python -m procurement.jobs.cli assistant-user
 
 Airflow вызывает те же функции. Возможность прогнать задание руками — не
 удобство, а условие отладки: иначе единственный способ проверить изменение
@@ -16,6 +17,7 @@ import sys
 import time
 from datetime import date
 
+from procurement.assistant.sql_access import apply_readonly_user
 from procurement.config import get_settings
 from procurement.ingest.synthetic_source import SyntheticSource
 from procurement.jobs.backfill import backfill_month
@@ -77,6 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_month,
         default=None,
         help="пересчитать один месяц вместо всех",
+    )
+
+    sub.add_parser(
+        "assistant-user", help="создать пользователя ClickHouse только для чтения для SQL агента"
     )
 
     return parser
@@ -142,6 +148,19 @@ async def run_marts(args: argparse.Namespace) -> int:
     return 0
 
 
+async def run_assistant_user() -> int:
+    settings = get_settings()
+    async with job_context(settings=settings) as context:
+        await apply_readonly_user(
+            context.clickhouse,
+            user=settings.assistant.sql.user,
+            password=settings.assistant.sql.password.get_secret_value(),
+            database=settings.clickhouse.database,
+        )
+    print(f"Пользователь {settings.assistant.sql.user}: только SELECT, лимиты закреплены")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(get_settings().log_level, pretty=args.pretty_logs)
@@ -150,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(run_backfill(args))
     if args.command == "marts":
         return asyncio.run(run_marts(args))
+    if args.command == "assistant-user":
+        return asyncio.run(run_assistant_user())
     return asyncio.run(run_incremental(args))
 
 

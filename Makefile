@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json assistant-user
 
 venv:
 	py -3.12 -m venv .venv
@@ -30,6 +30,9 @@ bench-api:
 
 refresh-marts:
 	.venv/Scripts/python -m procurement.jobs.cli marts
+
+assistant-user:
+	.venv/Scripts/python -m procurement.jobs.cli assistant-user
 
 seed-reference:
 	.venv/Scripts/python scripts/seed_reference.py

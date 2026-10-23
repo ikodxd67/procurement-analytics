@@ -72,8 +72,10 @@ class LLMSettings(BaseModel):
     # и тратить деньги. Настоящая включается явно, как источник REST.
     kind: LLMKind = LLMKind.FAKE
     api_key: SecretStr = SecretStr("")
-    # Имя модели не зашито: выбирается на этапе 1 после сверки цен и лимитов.
-    model: str = ""
+    # Haiku 5.5 — выбор 2026-10-23: самая дешёвая из текущих ($0.10 / $0.50
+    # за 1M токенов по документации Claude API на 2026-10-06), для evals и
+    # портфолио хватает. Меняется одной переменной окружения.
+    model: str = "claude-haiku-5-5"
     # С включённым рассуждением (thinking) оно тоже тратит max_tokens, и
     # маленький лимит обрезает ответ на полуслове. 16000 — рекомендация
     # документации Claude API для запросов без стриминга.
@@ -102,8 +104,17 @@ class LLMSettings(BaseModel):
         return self
 
 
+class SqlToolSettings(BaseModel):
+    # Отдельный пользователь ClickHouse только для чтения: под ним идёт SQL,
+    # который пишет модель. Создаётся командой `make assistant-user`.
+    user: str = "assistant_ro"
+    # Как пароль Postgres в compose: годится только для локального стенда.
+    password: SecretStr = SecretStr("assistant-local-only-not-a-secret")
+
+
 class AssistantSettings(BaseModel):
     llm: LLMSettings = LLMSettings()
+    sql: SqlToolSettings = SqlToolSettings()
 
 
 class Settings(BaseSettings):

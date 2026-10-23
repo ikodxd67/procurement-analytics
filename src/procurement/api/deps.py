@@ -8,14 +8,13 @@ TLS заново несколько раз в секунду — та же ош�
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Annotated
 
 from clickhouse_connect.driver import AsyncClient
 from fastapi import Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from procurement.api.errors import BadRequestError
 from procurement.api.queries import Marts, Paging, Period
 
 # Верхняя граница страницы. Без неё один клиент с limit=1000000 кладёт сервис
@@ -26,12 +25,6 @@ MAX_LIMIT = 500
 # пропустить сто тысяч строк, их придётся сначала посчитать. Для витрин, где
 # результат после группировки невелик, этого предела хватает с запасом.
 MAX_OFFSET = 10_000
-
-# Предел ширины периода. Пять лет закрывают любой осмысленный запрос, а
-# случайный date_from=1900 перестаёт быть способом устроить полный перебор.
-MAX_PERIOD_DAYS = 366 * 5
-
-DEFAULT_PERIOD_DAYS = 365
 
 
 def get_clickhouse(request: Request) -> AsyncClient:
@@ -56,19 +49,7 @@ def get_period(
         Query(description="Конец периода включительно. По умолчанию сегодня"),
     ] = None,
 ) -> Period:
-    resolved_to = date_to or date.today()
-    resolved_from = date_from or (resolved_to - timedelta(days=DEFAULT_PERIOD_DAYS))
-
-    if resolved_from > resolved_to:
-        msg = f"Начало периода {resolved_from} позже его конца {resolved_to}"
-        raise BadRequestError(msg)
-
-    span = (resolved_to - resolved_from).days
-    if span > MAX_PERIOD_DAYS:
-        msg = f"Период в {span} дней шире допустимых {MAX_PERIOD_DAYS}"
-        raise BadRequestError(msg)
-
-    return Period(date_from=resolved_from, date_to=resolved_to)
+    return Period.resolve(date_from, date_to)
 
 
 def get_paging(

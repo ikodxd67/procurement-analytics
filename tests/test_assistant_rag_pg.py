@@ -95,6 +95,12 @@ async def index(
     return result.written, result.unchanged, result.deleted
 
 
+async def fetch_column(sessions: async_sessionmaker[AsyncSession], sql: str) -> list[str]:
+    async with sessions() as session:
+        rows = await session.execute(sa.text(sql))
+        return [str(row[0]) for row in rows]
+
+
 # --- пересборка ------------------------------------------------------------
 
 
@@ -110,12 +116,7 @@ async def test_rebuild_is_idempotent_and_only_touches_changes(
 
     # Пункт исчез из редакции — исчезает из индекса.
     assert await index(sessions, edited[:2]) == (0, 2, 2)
-    async with sessions() as session:
-        anchors = (
-            (await session.execute(sa.text("SELECT anchor FROM doc_chunk ORDER BY anchor")))
-            .scalars()
-            .all()
-        )
+    anchors = await fetch_column(sessions, "SELECT anchor FROM doc_chunk ORDER BY anchor")
     assert anchors == ["z1", "z2"]
 
 
@@ -125,12 +126,7 @@ async def test_other_sources_are_left_alone(sessions: async_sessionmaker[AsyncSe
 
     await index(sessions, [])  # источник правил опустел
 
-    async with sessions() as session:
-        sources = (
-            (await session.execute(sa.text("SELECT DISTINCT source FROM doc_chunk")))
-            .scalars()
-            .all()
-        )
+    sources = await fetch_column(sessions, "SELECT DISTINCT source FROM doc_chunk")
     assert sources == ["project:dd"]
 
 
@@ -139,19 +135,11 @@ async def test_full_text_column_is_computed_by_database(
 ) -> None:
     await index(sessions, RULES)
 
-    async with sessions() as session:
-        found = (
-            (
-                await session.execute(
-                    sa.text(
-                        "SELECT anchor FROM doc_chunk "
-                        "WHERE tsv @@ websearch_to_tsquery('russian', 'демпинговых ценах')"
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
+    found = await fetch_column(
+        sessions,
+        "SELECT anchor FROM doc_chunk "
+        "WHERE tsv @@ websearch_to_tsquery('russian', 'демпинговых ценах')",
+    )
     # Стемминг russian: «демпинговых ценах» находит «демпинговой … цена».
     assert found == ["z1"]
 

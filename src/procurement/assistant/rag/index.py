@@ -88,7 +88,9 @@ async def replace_source(
             text("SELECT anchor, content_hash FROM doc_chunk WHERE source = :source"),
             {"source": source},
         )
-        existing = dict(rows.tuples().all())
+        # Без Result.tuples(): в SQLAlchemy 2.1 он устарел (строка и так
+        # распаковывается как кортеж) — поймано в CI, локально стояла 2.0.
+        existing: dict[str, str] = {row.anchor: row.content_hash for row in rows}
 
         changed = [
             c for c in chunks if existing.get(c.anchor) != c.content_hash(embedder.model_name)

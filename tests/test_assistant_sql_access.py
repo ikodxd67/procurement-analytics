@@ -95,7 +95,7 @@ async def readonly(admin_settings: ClickHouseSettings) -> AsyncIterator[AsyncCli
 # 497 ACCESS_DENIED. Проверяем именно код отказа сервера. По классу не выйдет:
 # ProgrammingError драйвера («чужой цикл событий») — наследник DatabaseError,
 # и «любая ClickHouseError» засчитала бы сломанное соединение как защиту.
-DENIED = re.compile(r"Code: (164|452|497)")
+DENIED = re.compile(r"Code: (164|452|497)\b")
 
 
 def assert_denied(exc: BaseException) -> None:

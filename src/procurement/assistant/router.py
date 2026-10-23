@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from procurement.assistant.errors import LLMResponseError
 from procurement.assistant.llm import LLMClient
-from procurement.assistant.models import Message, StopReason
+from procurement.assistant.models import Message, StopReason, Usage
 
 
 class QuestionKind(StrEnum):
@@ -66,6 +66,12 @@ def route_schema() -> dict[str, Any]:
 
 
 async def route_question(llm: LLMClient, question: str) -> Route:
+    route, _ = await route_with_usage(llm, question)
+    return route
+
+
+async def route_with_usage(llm: LLMClient, question: str) -> tuple[Route, Usage]:
+    """То же, но с расходом токенов: агент прибавляет его к цене ответа."""
     response = await llm.complete(
         [Message.user(question)],
         system=SYSTEM_PROMPT,
@@ -88,4 +94,4 @@ async def route_question(llm: LLMClient, question: str) -> Route:
         and route.year_from > route.year_to
     ):
         route = route.model_copy(update={"year_from": route.year_to, "year_to": route.year_from})
-    return route
+    return route, response.usage

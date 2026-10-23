@@ -10,11 +10,12 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from clickhouse_connect.driver import AsyncClient
-from clickhouse_connect.driver.exceptions import ClickHouseError
+from clickhouse_connect.driver.exceptions import ClickHouseError, ProgrammingError
 from pydantic import SecretStr
 from testcontainers.community.clickhouse import ClickHouseContainer
 
@@ -53,7 +54,12 @@ def admin_settings() -> Iterator[ClickHouseSettings]:
         )
 
 
-@pytest.fixture(scope="module")
+# Функциональная область, а не модульная: асинхронный клиент clickhouse-connect
+# привязан к циклу событий, в котором создан, а pytest-asyncio даёт каждому
+# тесту свой цикл. С модульным клиентом первая версия этого файла падала с
+# «session belongs to a different event loop» — и, хуже, тесты «нельзя» из-за
+# этого проходили, ничего не проверяя. Отсюда и assert_denied ниже.
+@pytest.fixture
 async def readonly(admin_settings: ClickHouseSettings) -> AsyncIterator[AsyncClient]:
     admin = await build_client(admin_settings)
     await apply_schema(admin)
@@ -66,12 +72,15 @@ async def readonly(admin_settings: ClickHouseSettings) -> AsyncIterator[AsyncCli
     await admin.command(
         "CREATE TABLE IF NOT EXISTS sync_secret (token String) ENGINE = MergeTree ORDER BY token"
     )
+    await admin.command("TRUNCATE TABLE sync_secret")
     await admin.command("INSERT INTO sync_secret VALUES ('не для агента')")
+    await admin.command("TRUNCATE TABLE contracts")
     await admin.command(
         "INSERT INTO contracts (id, customer_bin, supplier_biin, contract_sum, crdate, "
         "sign_date, last_update_date) VALUES (1, '900140000101', '950140000111', 100, "
         "'2025-01-10 00:00:00', '2025-01-10 00:00:00', '2025-01-10 00:00:00')"
     )
+    # Повторный вызов на каждый тест заодно проверяет, что команда идемпотентна.
     await apply_readonly_user(admin, user=RO_USER, password=RO_PASSWORD, database="test")
     await admin.close()
 
@@ -80,6 +89,18 @@ async def readonly(admin_settings: ClickHouseSettings) -> AsyncIterator[AsyncCli
     )
     yield ro
     await ro.close()
+
+
+# Коды отказов ClickHouse: 164 READONLY, 452 SETTING_CONSTRAINT_VIOLATION,
+# 497 ACCESS_DENIED. Проверяем именно код отказа сервера. По классу не выйдет:
+# ProgrammingError драйвера («чужой цикл событий») — наследник DatabaseError,
+# и «любая ClickHouseError» засчитала бы сломанное соединение как защиту.
+DENIED = re.compile(r"Code: (164|452|497)")
+
+
+def assert_denied(exc: BaseException) -> None:
+    assert not isinstance(exc, ProgrammingError), f"ошибка драйвера, не сервера: {exc}"
+    assert DENIED.search(str(exc)), f"сервер ответил не отказом: {str(exc)[:300]}"
 
 
 async def test_readonly_user_can_read_analytics(readonly: AsyncClient) -> None:
@@ -99,13 +120,15 @@ async def test_readonly_user_can_read_analytics(readonly: AsyncClient) -> None:
     ],
 )
 async def test_readonly_user_cannot_change_anything(readonly: AsyncClient, statement: str) -> None:
-    with pytest.raises(ClickHouseError):
+    with pytest.raises(ClickHouseError) as exc_info:
         await readonly.command(statement)
+    assert_denied(exc_info.value)
 
 
 async def test_readonly_user_cannot_read_other_tables(readonly: AsyncClient) -> None:
-    with pytest.raises(ClickHouseError):
+    with pytest.raises(ClickHouseError) as exc_info:
         await readonly.query("SELECT token FROM sync_secret")
+    assert_denied(exc_info.value)
 
 
 @pytest.mark.parametrize(
@@ -117,16 +140,18 @@ async def test_readonly_user_cannot_read_other_tables(readonly: AsyncClient) -> 
     ],
 )
 async def test_readonly_user_cannot_use_table_functions(readonly: AsyncClient, query: str) -> None:
-    with pytest.raises(ClickHouseError):
+    with pytest.raises(ClickHouseError) as exc_info:
         await readonly.query(query)
+    assert_denied(exc_info.value)
 
 
 @pytest.mark.parametrize(
     "setting", ["max_execution_time = 3600", "readonly = 0", "max_result_rows = 0"]
 )
 async def test_query_cannot_lift_pinned_limits(readonly: AsyncClient, setting: str) -> None:
-    with pytest.raises(ClickHouseError):
+    with pytest.raises(ClickHouseError) as exc_info:
         await readonly.query(f"SELECT 1 SETTINGS {setting}")
+    assert_denied(exc_info.value)
 
 
 async def test_long_result_is_cut_by_database_not_an_error(readonly: AsyncClient) -> None:

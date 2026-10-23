@@ -11,7 +11,7 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -62,6 +62,44 @@ class ClickHouseSettings(BaseModel):
     password: SecretStr = SecretStr("")
 
 
+class LLMKind(StrEnum):
+    ANTHROPIC = "anthropic"
+    FAKE = "fake"
+
+
+class LLMSettings(BaseModel):
+    # По умолчанию поддельная модель: тесты и CI не должны требовать ключа
+    # и тратить деньги. Настоящая включается явно, как источник REST.
+    kind: LLMKind = LLMKind.FAKE
+    api_key: SecretStr = SecretStr("")
+    # Имя модели не зашито: выбирается на этапе 1 после сверки цен и лимитов.
+    model: str = ""
+    max_tokens: int = Field(default=1024, ge=1)
+    request_timeout_s: float = Field(default=60.0, gt=0)
+
+    @model_validator(mode="after")
+    def _real_model_needs_key_and_name(self) -> LLMSettings:
+        # Без этой проверки пустой ключ всплыл бы только на первом запросе,
+        # ошибкой 401 посреди работы агента. Лучше упасть при старте.
+        if self.kind is LLMKind.ANTHROPIC:
+            missing = [
+                name
+                for name, empty in (
+                    ("api_key", not self.api_key.get_secret_value()),
+                    ("model", not self.model),
+                )
+                if empty
+            ]
+            if missing:
+                msg = f"для kind=anthropic нужны: {', '.join(missing)}"
+                raise ValueError(msg)
+        return self
+
+
+class AssistantSettings(BaseModel):
+    llm: LLMSettings = LLMSettings()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PA_",
@@ -79,6 +117,7 @@ class Settings(BaseSettings):
     pipeline: PipelineSettings = PipelineSettings()
     postgres: PostgresSettings = PostgresSettings()
     clickhouse: ClickHouseSettings = ClickHouseSettings()
+    assistant: AssistantSettings = AssistantSettings()
 
 
 @lru_cache(maxsize=1)

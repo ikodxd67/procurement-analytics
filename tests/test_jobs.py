@@ -34,6 +34,7 @@ from procurement.storage.clickhouse.ddl import apply_schema
 from procurement.storage.clickhouse.schema import CONTRACTS
 from procurement.storage.postgres.engine import build_engine, build_session_factory
 from procurement.storage.postgres.state_store import PostgresStateStore
+from tests.conftest import POSTGRES_IMAGE
 
 pytestmark = pytest.mark.integration
 
@@ -42,7 +43,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(scope="module")
 def stack() -> Iterator[tuple[PostgresSettings, ClickHouseSettings]]:
-    postgres = PostgresContainer("postgres:16-alpine", driver="asyncpg")
+    postgres = PostgresContainer(POSTGRES_IMAGE, driver="asyncpg")
     clickhouse = ClickHouseContainer(
         "clickhouse/clickhouse-server:24.8-alpine",
         port=8123,

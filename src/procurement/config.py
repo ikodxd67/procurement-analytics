@@ -112,9 +112,37 @@ class SqlToolSettings(BaseModel):
     password: SecretStr = SecretStr("assistant-local-only-not-a-secret")
 
 
+class EmbedderKind(StrEnum):
+    FASTEMBED = "fastembed"
+    HASH = "hash"
+
+
+class RagSettings(BaseModel):
+    # fastembed — настоящая модель локально (ONNX, без сети после первой
+    # загрузки). hash — детерминированная заглушка для тестов: смысла не
+    # понимает, но похожие слова дают похожие векторы.
+    embedder: EmbedderKind = EmbedderKind.FASTEMBED
+    # 512 токенов на вход, вектор 768, 1.0 ГБ, Apache-2.0 (список моделей
+    # fastembed 0.9.0). MiniLM из того же списка режет вход на 128 токенах —
+    # для пунктов правил это мало.
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    # Приставки «query: » / «passage: » нужны моделям семейства e5; mpnet их не ждёт.
+    query_prefix: str = ""
+    document_prefix: str = ""
+    # Куда fastembed кладёт модель. Внутри проекта, а не во временной папке
+    # системы: там её может стереть очистка диска, и следующий запуск снова
+    # потянет гигабайт из сети.
+    model_cache_dir: str = ".cache/fastembed"
+    # Правила осуществления государственных закупок, приказ МФ РК № 687 от
+    # 09.10.2024 (adilet, номер NGR). Проверено 2026-10-23: действует.
+    adilet_documents: tuple[str, ...] = ("V2400035238",)
+    adilet_api_url: str = "https://adilet.zan.kz/api/documents/by-ngr/{ngr}?language=rus"
+
+
 class AssistantSettings(BaseModel):
     llm: LLMSettings = LLMSettings()
     sql: SqlToolSettings = SqlToolSettings()
+    rag: RagSettings = RagSettings()
 
 
 class Settings(BaseSettings):

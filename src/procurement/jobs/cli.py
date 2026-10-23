@@ -3,6 +3,7 @@
     python -m procurement.jobs.cli backfill --entity contracts --from 2023-01 --to 2025-12
     python -m procurement.jobs.cli incremental --entity contracts --month 2025-06
     python -m procurement.jobs.cli assistant-user
+    python -m procurement.jobs.cli docs-index
 
 Airflow вызывает те же функции. Возможность прогнать задание руками — не
 удобство, а условие отладки: иначе единственный способ проверить изменение
@@ -22,6 +23,7 @@ from procurement.config import get_settings
 from procurement.ingest.synthetic_source import SyntheticSource
 from procurement.jobs.backfill import backfill_month
 from procurement.jobs.context import SYNTHETIC_RECORDS_PER_MONTH, job_context
+from procurement.jobs.docs_index import rebuild_docs_index
 from procurement.jobs.incremental import sync_incremental
 from procurement.jobs.marts import refresh_monthly_mart
 from procurement.logging import configure_logging, get_logger
@@ -83,6 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser(
         "assistant-user", help="создать пользователя ClickHouse только для чтения для SQL агента"
+    )
+    sub.add_parser(
+        "docs-index", help="пересобрать индекс документов ассистента (правила, описание)"
     )
 
     return parser
@@ -161,6 +166,14 @@ async def run_assistant_user() -> int:
     return 0
 
 
+async def run_docs_index() -> int:
+    async with job_context() as context:
+        results = await rebuild_docs_index(context)
+    for r in results:
+        print(f"{r.source}: записано {r.written}, без изменений {r.unchanged}, удалено {r.deleted}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(get_settings().log_level, pretty=args.pretty_logs)
@@ -171,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(run_marts(args))
     if args.command == "assistant-user":
         return asyncio.run(run_assistant_user())
+    if args.command == "docs-index":
+        return asyncio.run(run_docs_index())
     return asyncio.run(run_incremental(args))
 
 

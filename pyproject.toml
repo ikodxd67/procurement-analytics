@@ -23,6 +23,10 @@ dependencies = [
     # Claude API для ассистента. Версия 2.x построена на httpx2, а не на httpx;
     # с httpx загрузчика они не пересекаются.
     "anthropic>=2.1,<3",
+    # Поиск ассистента по документам: эмбеддинги локально на ONNX (без torch)
+    # и тип vector для SQLAlchemy.
+    "fastembed>=0.9,<1",
+    "pgvector>=0.5,<1",
 ]
 
 [project.optional-dependencies]

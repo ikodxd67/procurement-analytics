@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json assistant-user
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json assistant-user docs-index
 
 venv:
 	py -3.12 -m venv .venv
@@ -33,6 +33,10 @@ refresh-marts:
 
 assistant-user:
 	.venv/Scripts/python -m procurement.jobs.cli assistant-user
+
+# Первый запуск скачивает модель эмбеддингов (~1.1 ГБ) в .cache/fastembed.
+docs-index:
+	.venv/Scripts/python -m procurement.jobs.cli docs-index
 
 seed-reference:
 	.venv/Scripts/python scripts/seed_reference.py

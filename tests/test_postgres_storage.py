@@ -35,6 +35,7 @@ from procurement.storage.postgres.models import (
     SyncState,
 )
 from procurement.storage.postgres.state_store import PostgresStateStore, RunJournal
+from tests.conftest import POSTGRES_IMAGE
 
 pytestmark = pytest.mark.integration
 
@@ -49,7 +50,7 @@ def postgres_dsn() -> Iterator[str]:
     каждый тест — расточительство. Изоляция достигается тем, что каждый тест
     работает со своими ключами.
     """
-    with PostgresContainer("postgres:16-alpine", driver="asyncpg") as container:
+    with PostgresContainer(POSTGRES_IMAGE, driver="asyncpg") as container:
         dsn = container.get_connection_url()
 
         config = Config(str(PROJECT_ROOT / "alembic.ini"))
@@ -90,6 +91,7 @@ async def test_migration_creates_all_tables(factory: async_sessionmaker[AsyncSes
     assert {
         "alembic_version",
         "app_user",
+        "doc_chunk",
         "ingest_run",
         "ref_classifier",
         "ref_status",

@@ -35,10 +35,14 @@ x-airflow-common: &airflow-common
     PA_CLICKHOUSE__PORT: "8123"
     PA_CLICKHOUSE__DATABASE: procurement
     PA_LOG_LEVEL: INFO
+    # Модель эмбеддингов (~1.1 ГБ) — в своём томе: скачивается один раз и
+    # переживает пересоздание контейнера.
+    PA_ASSISTANT__RAG__MODEL_CACHE_DIR: /opt/fastembed-cache
   volumes:
     - ./dags:/opt/airflow/dags:ro
     - ./src:/opt/procurement/src:ro
     - airflow-logs:/opt/airflow/logs
+    - fastembed-cache:/opt/fastembed-cache
   depends_on:
     airflow-postgres:
       condition: service_healthy
@@ -107,3 +111,4 @@ services:
 volumes:
   airflow-pgdata:
   airflow-logs:
+  fastembed-cache:

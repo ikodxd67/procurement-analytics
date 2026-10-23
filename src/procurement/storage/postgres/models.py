@@ -11,6 +11,10 @@
 по ним считают агрегаты по большим диапазонам. Это работа ClickHouse.
 Обоснование двух хранилищ целиком — в README.
 
+Здесь же — куски документов для поиска ассистента (RAG): их сотни, а не
+миллионы, и нужен им векторный индекс pgvector и полнотекстовый поиск — и то и
+другое у PostgreSQL есть, а у ClickHouse нет в нужном виде.
+
 Про пользователей отдельно: паролей и токенов в проекте нет и не будет.
 Пользователь существует только чтобы владеть сохранёнными фильтрами. Хранить
 учётные данные без настоящей задачи аутентификации — лишний риск на пустом
@@ -24,10 +28,12 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -37,7 +43,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from procurement.storage.postgres.base import Base
@@ -196,3 +202,55 @@ class SavedFilter(Base):
     )
 
     user: Mapped[AppUser] = relationship(back_populates="filters")
+
+
+# Размер вектора модели эмбеддингов по умолчанию
+# (sentence-transformers/paraphrase-multilingual-mpnet-base-v2 — 768, по
+# списку моделей fastembed 0.9.0). Сменить модель с другим размером — это
+# миграция и переиндексация, а не правка настройки.
+EMBEDDING_DIM = 768
+
+
+class DocChunk(Base):
+    """Кусок документа для поиска ассистента: пункт правил или раздел описания данных.
+
+    Ключ — (source, anchor): источник и якорь внутри него. Пересборка индекса
+    обновляет кусок по этому ключу, а не плодит копии, и удаляет куски,
+    которых в новой редакции документа нет.
+    """
+
+    __tablename__ = "doc_chunk"
+    __table_args__ = (
+        UniqueConstraint("source", "anchor", name="uq_doc_chunk_source_anchor"),
+        Index("ix_doc_chunk_tsv", "tsv", postgresql_using="gin"),
+        Index(
+            "ix_doc_chunk_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(64))
+    anchor: Mapped[str] = mapped_column(String(128))
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    # Хэш текста и модели: если ни то ни другое не поменялось, эмбеддинг
+    # пересчитывать незачем. Это и делает пересборку дешёвой.
+    content_hash: Mapped[str] = mapped_column(String(64))
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(EMBEDDING_DIM))
+    embedding_model: Mapped[str] = mapped_column(String(128))
+    # Версия источника — для правил это дата редакции на adilet.
+    source_version: Mapped[str] = mapped_column(String(64))
+    # Полнотекстовый индекс считает сама база: колонка вычисляемая, забыть
+    # обновить её при правке текста невозможно. Конфигурация russian — стемминг
+    # русского («закупок» и «закупки» — одно слово).
+    tsv: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('russian', title || ' ' || text)", persisted=True),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

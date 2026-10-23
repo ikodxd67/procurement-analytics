@@ -11,10 +11,12 @@ import pytest
 from clickhouse_connect.driver import AsyncClient
 from clickhouse_connect.driver.exceptions import DatabaseError
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from procurement.api.errors import BadRequestError, NotFoundError
 from procurement.api.queries import MAX_PERIOD_DAYS, Marts, Paging, Period
 from procurement.assistant.models import ToolUse
+from procurement.assistant.rag.embeddings import HashEmbedder
 from procurement.assistant.slices import MAX_TOOL_LIMIT, build_slice_tools
 from procurement.assistant.sql_access import ALLOWED_TABLES, LIMITS, readonly_user_statements
 from procurement.assistant.sql_tool import (
@@ -305,16 +307,18 @@ async def test_rejected_sql_never_reaches_database() -> None:
     assert client.queries == []
 
 
-def test_full_toolbox_has_slices_and_sql() -> None:
+def test_full_toolbox_has_slices_sql_and_docs() -> None:
     box = build_toolbox(
         marts=cast(Marts, StubMarts()),
         readonly=cast(AsyncClient, StubClickHouse(StubResult([], []))),
+        sessions=cast(async_sessionmaker[AsyncSession], None),
+        embedder=HashEmbedder(8),
     )
 
     names = [s.name for s in box.specs]
     assert names == sorted(names)
-    assert "run_sql" in names
-    assert len(names) == 8
+    assert {"run_sql", "search_docs"} <= set(names)
+    assert len(names) == 9
 
 
 # --- пользователь только для чтения ----------------------------------------

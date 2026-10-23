@@ -13,6 +13,10 @@ from procurement.ingest.models import Page
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "goszakup"
 
+# PostgreSQL 16 с pgvector: миграции ставят расширение vector для поиска
+# ассистента. Тот же образ, что в docker-compose.yml.
+POSTGRES_IMAGE = "pgvector/pgvector:0.8.7-pg16"
+
 
 @pytest.fixture
 def fixtures_root() -> Path:

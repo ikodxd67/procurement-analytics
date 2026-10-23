@@ -74,8 +74,14 @@ class LLMSettings(BaseModel):
     api_key: SecretStr = SecretStr("")
     # Имя модели не зашито: выбирается на этапе 1 после сверки цен и лимитов.
     model: str = ""
-    max_tokens: int = Field(default=1024, ge=1)
+    # С включённым рассуждением (thinking) оно тоже тратит max_tokens, и
+    # маленький лимит обрезает ответ на полуслове. 16000 — рекомендация
+    # документации Claude API для запросов без стриминга.
+    max_tokens: int = Field(default=16000, ge=1)
     request_timeout_s: float = Field(default=60.0, gt=0)
+    # Повторы делает сам SDK: 429, 5xx и обрывы сети, с экспоненциальной
+    # паузой. Свои поверх не пишем, только задаём число.
+    max_retries: int = Field(default=2, ge=0)
 
     @model_validator(mode="after")
     def _real_model_needs_key_and_name(self) -> LLMSettings:

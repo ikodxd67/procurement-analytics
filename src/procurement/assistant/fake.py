@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from procurement.assistant.models import (
     LLMResponse,
@@ -40,6 +41,7 @@ class FakeCall:
     system: str | None
     tools: list[ToolSpec]
     max_tokens: int | None
+    output_schema: dict[str, Any] | None
 
 
 class FakeLLM:
@@ -70,6 +72,7 @@ class FakeLLM:
         system: str | None = None,
         tools: Sequence[ToolSpec] = (),
         max_tokens: int | None = None,
+        output_schema: dict[str, Any] | None = None,
     ) -> LLMResponse:
         # Копия, а не ссылка: агент дописывает в свой список новые сообщения,
         # и без копии запись прошлого вызова тихо изменилась бы задним числом.
@@ -79,6 +82,7 @@ class FakeLLM:
                 system=system,
                 tools=list(tools),
                 max_tokens=max_tokens,
+                output_schema=output_schema,
             )
         )
         if not self._script:

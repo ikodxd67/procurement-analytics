@@ -44,7 +44,19 @@ class ToolResult(BaseModel):
     is_error: bool = False
 
 
-Block = Annotated[TextBlock | ToolUse | ToolResult, Field(discriminator="type")]
+class OpaqueBlock(BaseModel):
+    """Блок, который понимает только провайдер: например, рассуждение модели
+    (thinking) у Claude. Мы его не читаем, но обязаны вернуть в следующем
+    запросе без изменений, иначе модель потеряет ход своих рассуждений между
+    вызовами инструментов. ``data`` — блок ровно в том виде, как его отдал API.
+    """
+
+    type: Literal["opaque"] = "opaque"
+    provider: str
+    data: dict[str, Any]
+
+
+Block = Annotated[TextBlock | ToolUse | ToolResult | OpaqueBlock, Field(discriminator="type")]
 
 
 class Message(BaseModel):
@@ -69,7 +81,7 @@ class ToolSpec(BaseModel):
 
 
 class StopReason(StrEnum):
-    """Почему модель закончила ответ. Агенту важно различать все три."""
+    """Почему модель закончила ответ. Агенту важно различать все четыре."""
 
     END_TURN = "end_turn"
     """Ответила полностью."""
@@ -79,6 +91,9 @@ class StopReason(StrEnum):
 
     MAX_TOKENS = "max_tokens"
     """Упёрлась в лимит длины, ответ обрезан."""
+
+    REFUSAL = "refusal"
+    """Отказалась отвечать (сработала защита провайдера)."""
 
 
 class Usage(BaseModel):

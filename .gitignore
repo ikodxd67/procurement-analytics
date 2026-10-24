@@ -15,6 +15,9 @@ build/
 
 logs/
 .cache/
+# сырые ответы агента и локальные отчёты evals; итоговые отчёты кладутся в docs/ руками
+evals/runs/
+evals/reports/
 data/
 profiles/*.svg
 profiles/*.json

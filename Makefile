@@ -1,4 +1,4 @@
-.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json assistant-user docs-index ask
+.PHONY: venv install up down lint type test test-unit test-integration fmt migrate migration check-drift airflow-up airflow-down airflow-logs backfill seed-reference bench-sql api bench-api refresh-marts profile profile-debug bench-json assistant-user docs-index ask eval-retrieval eval-gold eval-agent
 
 venv:
 	py -3.12 -m venv .venv
@@ -42,6 +42,16 @@ docs-index:
 ask:
 	.venv/Scripts/python -m procurement.assistant.cli "$(q)"
 
+# Evals: поиск и эталоны — без языковой модели; агент — платно, нужен --yes.
+eval-retrieval:
+	.venv/Scripts/python -m procurement.assistant.evals.cli retrieval
+
+eval-gold:
+	.venv/Scripts/python -m procurement.assistant.evals.cli gold
+
+eval-agent:
+	.venv/Scripts/python -m procurement.assistant.evals.cli agent --yes
+
 seed-reference:
 	.venv/Scripts/python scripts/seed_reference.py
 
@@ -83,7 +93,7 @@ bench-json:
 	.venv/Scripts/python scripts/bench_json.py
 
 test-unit:
-	.venv/Scripts/pytest -m "not integration and not live"
+	.venv/Scripts/pytest -m "not integration and not live and not evals"
 
 test-integration:
 	.venv/Scripts/pytest -m integration

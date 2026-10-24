@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -32,8 +33,19 @@ CANDIDATES = 20
 MAX_SEMANTIC_DISTANCE = 0.6
 
 
+class SearchMode(StrEnum):
+    """Какие поиски участвуют. Агенту нужен hybrid; остальные — для evals,
+    чтобы измерить вклад каждого поиска, а не поверить на слово."""
+
+    HYBRID = "hybrid"
+    LEXICAL = "lexical"
+    SEMANTIC = "semantic"
+
+
 @dataclass(frozen=True, slots=True)
 class Hit:
+    source: str
+    anchor: str
     title: str
     url: str
     text: str
@@ -54,7 +66,7 @@ _HYBRID = text(
             -- тот вид, в котором PostgreSQL берёт индекс HNSW.
             SELECT id, embedding <=> CAST(:embedding AS vector) AS distance
             FROM doc_chunk
-            WHERE embedding_model = :model
+            WHERE embedding_model = :model AND :use_semantic
             ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :candidates
         ) nearest
@@ -64,13 +76,13 @@ _HYBRID = text(
         FROM (
             SELECT id, ts_rank_cd(tsv, query) AS rank
             FROM doc_chunk, websearch_to_tsquery('russian', :query) AS query
-            WHERE tsv @@ query
+            WHERE tsv @@ query AND :use_lexical
             ORDER BY rank DESC, id
             LIMIT :candidates
         ) matched
     )
     SELECT
-        c.title, c.url, c.text,
+        c.source, c.anchor, c.title, c.url, c.text,
         coalesce(1.0 / (:rrf_k + s.rnk), 0) + coalesce(1.0 / (:rrf_k + l.rnk), 0) AS score,
         s.distance, l.rnk AS lexical_rank, s.rnk AS semantic_rank
     FROM semantic s
@@ -90,6 +102,7 @@ async def hybrid_search(
     *,
     limit: int = 5,
     max_distance: float = MAX_SEMANTIC_DISTANCE,
+    mode: SearchMode = SearchMode.HYBRID,
 ) -> list[Hit]:
     vector = await embedder.embed_query(query)
     async with sessions() as session:
@@ -103,10 +116,14 @@ async def hybrid_search(
                 "rrf_k": RRF_K,
                 "max_distance": max_distance,
                 "limit": limit,
+                "use_lexical": mode is not SearchMode.SEMANTIC,
+                "use_semantic": mode is not SearchMode.LEXICAL,
             },
         )
         return [
             Hit(
+                source=r.source,
+                anchor=r.anchor,
                 title=r.title,
                 url=r.url,
                 text=r.text,

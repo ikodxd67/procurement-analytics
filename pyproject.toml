@@ -89,5 +89,6 @@ addopts = "-q --strict-markers"
 markers = [
     "integration: требует поднятых контейнеров PostgreSQL/ClickHouse",
     "live: ходит в настоящий API goszakup.gov.kz",
+    "evals: качество ассистента; нужны Docker и модель эмбеддингов (~1.1 ГБ)",
 ]
 filterwarnings = ["error::DeprecationWarning"]

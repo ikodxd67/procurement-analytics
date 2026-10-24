@@ -19,6 +19,8 @@ logs/
 evals/runs/
 evals/reports/
 data/
+# снимок правил для evals — в репозитории (см. src/procurement/assistant/evals/snapshot.py)
+!evals/data/
 profiles/*.svg
 profiles/*.json
 

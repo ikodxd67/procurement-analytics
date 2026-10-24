@@ -32,6 +32,19 @@ class ToolError(Exception):
     """Ошибка, которую модель может исправить сама: текст уйдёт ей как есть."""
 
 
+@dataclass(frozen=True, slots=True)
+class Executed:
+    """Итог вызова: что уйдёт модели и что вернул инструмент до перевода в текст.
+
+    ``value`` нужен тем, кто читает журнал агента программно (ручка /ask берёт
+    из него источники): разбирать обратно JSON, который к тому же мог быть
+    обрезан по длине, — хрупко. У ошибки ``value`` — None.
+    """
+
+    result: ToolResult
+    value: Any = None
+
+
 @dataclass(frozen=True)
 class Tool[ArgsT: BaseModel]:
     name: str
@@ -64,6 +77,9 @@ class ToolBox:
         return [self._tools[name].spec for name in sorted(self._tools)]
 
     async def execute(self, use: ToolUse) -> ToolResult:
+        return (await self.run(use)).result
+
+    async def run(self, use: ToolUse) -> Executed:
         tool = self._tools.get(use.name)
         if tool is None:
             return _error(
@@ -86,7 +102,7 @@ class ToolBox:
 
         content = to_tool_content(value)
         log.info("tool.ok", tool=use.name, chars=len(content))
-        return ToolResult(tool_use_id=use.id, content=content)
+        return Executed(ToolResult(tool_use_id=use.id, content=content), value)
 
 
 def to_tool_content(value: Any) -> str:
@@ -107,8 +123,8 @@ def to_tool_content(value: Any) -> str:
     return text
 
 
-def _error(use: ToolUse, message: str) -> ToolResult:
-    return ToolResult(tool_use_id=use.id, content=message, is_error=True)
+def _error(use: ToolUse, message: str) -> Executed:
+    return Executed(ToolResult(tool_use_id=use.id, content=message, is_error=True))
 
 
 def _describe(exc: ValidationError) -> str:

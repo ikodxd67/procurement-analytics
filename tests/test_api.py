@@ -23,7 +23,17 @@ from testcontainers.community.clickhouse import ClickHouseContainer
 from testcontainers.community.postgres import PostgresContainer
 
 from procurement.api.app import build_app
-from procurement.config import ClickHouseSettings, PostgresSettings, Settings
+from procurement.assistant.fake import FakeLLM
+from procurement.config import (
+    AskApiSettings,
+    AssistantSettings,
+    ClickHouseSettings,
+    EmbedderKind,
+    PostgresSettings,
+    RagSettings,
+    Settings,
+    SqlToolSettings,
+)
 from procurement.storage.clickhouse.client import build_client
 from procurement.storage.clickhouse.ddl import apply_schema
 from tests.conftest import POSTGRES_IMAGE
@@ -347,3 +357,50 @@ async def test_openapi_describes_every_route(client: httpx.AsyncClient) -> None:
     spec: dict[str, Any] = response.json()
     assert "/v1/customers/{customer_bin}/suppliers" in spec["paths"]
     assert "/health/ready" in spec["paths"]
+
+
+# --- ассистент ---------------------------------------------------------------------
+
+
+async def test_ask_wired_through_lifespan(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Сборка ручки в lifespan: агент на подключениях приложения, SQL — в настоящий ClickHouse.
+
+    Модель поддельная (её не собрать из настроек — подменяем фабрику), эмбеддер —
+    заглушка. Проверяется проводка: что ручка включается настройкой, run_sql
+    доходит до базы и всё закрывается при остановке.
+    """
+    await seed(settings)
+    llm = FakeLLM(
+        [
+            FakeLLM.text('{"kind": "data", "year_from": 2024, "year_to": 2024, "reason": "т"}'),
+            FakeLLM.tool_call("run_sql", {"query": "SELECT count() AS n FROM contracts FINAL"}),
+            FakeLLM.text("В данных 3 договора (данные синтетические)."),
+        ]
+    )
+    monkeypatch.setattr("procurement.assistant.stack.build_llm_client", lambda _: llm)
+    enabled = settings.model_copy(
+        update={
+            "assistant": AssistantSettings(
+                # Пользователь агента здесь — тестовый администратор контейнера:
+                # права только на чтение проверяет test_assistant_sql_access.
+                sql=SqlToolSettings(user="test", password=SecretStr("test")),
+                rag=RagSettings(embedder=EmbedderKind.HASH),
+                api=AskApiSettings(enabled=True),
+            )
+        }
+    )
+    app = build_app(enabled)
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as http,
+    ):
+        response = await http.post("/v1/ask", json={"question": "Сколько договоров в 2024?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sql"] == [{"query": "SELECT count() AS n FROM contracts FINAL", "ok": True}]
+    assert body["stop"] == "answered"
+    assert llm.closed

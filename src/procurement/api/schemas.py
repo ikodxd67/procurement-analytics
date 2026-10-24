@@ -112,3 +112,64 @@ class ActivityPeriod(BaseModel):
 class HealthStatus(BaseModel):
     status: str
     checks: dict[str, str] = Field(default_factory=dict)
+
+
+# --- ассистент -------------------------------------------------------------------
+
+# Длиннее вопрос не нужен, а каждый символ уходит модели токенами.
+MAX_QUESTION_CHARS = 1000
+
+
+class AskRequest(BaseModel):
+    question: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=3, max_length=MAX_QUESTION_CHARS)
+    ] = Field(description="Вопрос по-русски: о цифрах закупок или о правилах их проведения")
+
+
+class AskSource(BaseModel):
+    title: str = Field(description="Документ › глава › параграф › пункт")
+    url: str
+    cited: bool = Field(
+        description="Ссылка есть в тексте ответа. Остальные модель нашла, но не назвала"
+    )
+
+
+class AskSql(BaseModel):
+    query: str = Field(description="SELECT, который написала модель")
+    ok: bool = Field(description="Прошёл проверку и выполнился под пользователем только на чтение")
+
+
+class AskToolCall(BaseModel):
+    name: str
+    ok: bool
+    duration_ms: int
+
+
+class AskUsage(BaseModel):
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float | None = Field(
+        description="По ценам документации Claude API; пусто для модели не из таблицы цен"
+    )
+
+
+class AskResponse(BaseModel):
+    answer: str
+    stop: str = Field(
+        description=(
+            "Чем закончился проход: answered, off_topic — ответ; step_limit, timeout, "
+            "max_tokens, refusal — ответа по существу нет"
+        )
+    )
+    kind: str | None = Field(
+        description="Тип вопроса по маршрутизатору: data, docs, mixed, off_topic"
+    )
+    sources: list[AskSource] = Field(description="Найденные пункты правил и описания данных")
+    sql: list[AskSql] = Field(description="Свободный SQL агента, если готовых срезов не хватило")
+    tool_calls: list[AskToolCall]
+    steps: int = Field(description="Сколько раз агент вызвал модель, не считая маршрутизатора")
+    usage: AskUsage = Field(
+        description="Расход на этот ответ. У ответа из кэша — расход первого прохода"
+    )
+    cached: bool = Field(description="Ответ не стоил нового прохода агента")

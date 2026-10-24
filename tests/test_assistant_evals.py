@@ -21,7 +21,7 @@ from procurement.assistant.evals.retrieval import (
     QuestionResult,
     RetrievalReport,
 )
-from procurement.assistant.evals.runner import cost_usd, gold_refs, render, run_questions
+from procurement.assistant.evals.runner import gold_refs, render, run_questions
 from procurement.assistant.evals.snapshot import read_snapshot, write_snapshot
 from procurement.assistant.fake import FakeLLM
 from procurement.assistant.models import (
@@ -33,6 +33,7 @@ from procurement.assistant.models import (
     ToolUse,
     Usage,
 )
+from procurement.assistant.pricing import cost_usd
 from procurement.assistant.rag.adilet import AdiletDocument
 from procurement.assistant.rag.dictionary import chunk_dictionary, load_text
 from procurement.assistant.rag.search import SearchMode

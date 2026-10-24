@@ -139,10 +139,27 @@ class RagSettings(BaseModel):
     adilet_api_url: str = "https://adilet.zan.kz/api/documents/by-ngr/{ngr}?language=rus"
 
 
+class AskApiSettings(BaseModel):
+    # Выключено по умолчанию: ручке нужны модель с ключом, пользователь
+    # агента и гигабайтная модель эмбеддингов. Остальной API без них работает,
+    # и поднимать всё это ради срезов незачем.
+    enabled: bool = False
+    # Одинаковый вопрос в течение часа отдаётся из памяти, без нового платного
+    # прохода агента. Витрины обновляются раз в сутки, документы — раз в
+    # неделю, так что час устареть не успевает.
+    cache_ttl_s: float = Field(default=3600.0, gt=0)
+    cache_max_entries: int = Field(default=256, ge=1)
+    # Лимиты в вопросах за минуту. На клиента — чтобы один не съел всё; общий
+    # — потолок трат: каждый вопрос без кэша стоит денег.
+    per_client_per_minute: int = Field(default=5, ge=1)
+    total_per_minute: int = Field(default=30, ge=1)
+
+
 class AssistantSettings(BaseModel):
     llm: LLMSettings = LLMSettings()
     sql: SqlToolSettings = SqlToolSettings()
     rag: RagSettings = RagSettings()
+    api: AskApiSettings = AskApiSettings()
 
 
 class Settings(BaseSettings):

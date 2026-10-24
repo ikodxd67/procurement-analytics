@@ -8,7 +8,8 @@
 An analytics platform for Kazakhstan's public procurement data
 (`goszakup.gov.kz`): an async loader, two storage engines (PostgreSQL for
 state, ClickHouse for facts), Airflow orchestration, analytical SQL in two
-dialects, and an HTTP API on top.
+dialects, and an HTTP API on top. On top of that sits an AI assistant that
+answers questions about the data and the procurement rules (RAG + agent + evals).
 
 > **About the data.** There is no goszakup API token yet, so every number
 > below was measured on **synthetic data** with the shape of the real API
@@ -30,6 +31,10 @@ dialects, and an HTTP API on top.
   takes 158.7 MiB on disk against 741 MB.
 - **Sort key chosen by experiment:** four `ORDER BY` variants on 20M rows; the
   winner reads 40× fewer rows on the main query.
+- **AI assistant with measured retrieval:** RAG over the procurement rules and
+  an agent with free-form SQL under a read-only user (a test proves it cannot
+  change anything). Retrieval quality is a CI gate on 53 questions: hybrid
+  search hit@5 0.89, MRR 0.78.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/pg_vs_clickhouse_dark.png">
@@ -131,7 +136,8 @@ the change date, sort key `(customer_bin, supplier_biin, id)`.
 customer, customers of a supplier, category rollup, monthly trend, price
 outliers, concentration, supplier activity. Pagination without a full
 `COUNT` (fetch one extra row to know if there is a next page); errors come
-in one envelope with a machine-readable code.
+in one envelope with a machine-readable code. `POST /v1/ask` asks the
+assistant; see below.
 
 A real response from a local stand (synthetic data, 720k contracts):
 
@@ -153,6 +159,108 @@ curl "localhost:8000/v1/customers/900000001324/suppliers?date_from=2023-01-01&da
 <img alt="Swagger UI with health probes and seven analytical endpoints" src="docs/img/swagger.png" width="800">
 
 The interactive docs are in Russian, like the endpoint descriptions.
+
+## AI assistant
+
+Ask a question in Russian and get an answer with numbers from the marts or a
+point of the procurement rules, together with what it rests on: the points
+found, the SQL that ran, the token cost. Code is in
+`src/procurement/assistant/`, the endpoint is `POST /v1/ask`. The model is
+Claude behind a provider-neutral `LLMClient` (Haiku 5.5 by default, one
+variable to change). Every test runs on a scripted fake model, with no key
+and no network.
+
+```mermaid
+flowchart LR
+    Q[POST /v1/ask] --> K{cache}
+    K -->|miss| R[router<br/>structured output]
+    R -->|off topic| A
+    R --> L[agent loop<br/>≤ 8 steps, 120 s]
+    L <--> S[7 mart slices]
+    L <--> SQL[run_sql<br/>read-only user]
+    L <--> D[search_docs<br/>pgvector + full-text]
+    S --> CH[(ClickHouse)]
+    SQL --> CH
+    D --> PG[(PostgreSQL<br/>pgvector)]
+    L --> A[answer + sources<br/>+ SQL + cost]
+    K -->|hit| A
+```
+
+**Documents (RAG).** The [public procurement rules](https://adilet.zan.kz/rus/docs/V2400035238)
+(Ministry of Finance order No. 687) from adilet.zan.kz, split by point into
+676 chunks titled "Chapter › Paragraph › point N", plus a description of this
+system's data. Embeddings run locally (fastembed,
+`paraphrase-multilingual-mpnet-base-v2`); an HNSW index in pgvector and
+PostgreSQL Russian full-text search, merged with RRF. The `rebuild_docs_index`
+DAG rebuilds the index weekly; a rebuild duplicates nothing thanks to a
+content hash.
+
+**The agent cannot change the database, and a test proves it.** The model's
+free-form SQL runs as a separate ClickHouse user: SELECT on four tables,
+profile `readonly=2`, limits (10 s, 1 GB of memory, 1000 rows) marked CONST so
+a query cannot raise them. An integration test tries INSERT, DELETE, DROP,
+TRUNCATE and CREATE, reading another table, `url()`/`file()`/`remote()` and
+lifting the limits, and checks that the server refuses with its own error
+code, not just that the query failed somehow. The prompt calls tool results
+data, not instructions; the evals include traps: "delete the contracts", "is
+there collusion" and a question with an embedded "ignore the rules".
+
+**Evals.** 53 questions with gold answers (`evals/questions.toml`): 33 on the
+rules and the data description (gold is a point found and read in the text),
+10 on the data (gold is SQL, not a number, so it survives regenerating the
+data; the SQL itself is checked against hand-computed answers), plus mixed,
+unanswerable, off-topic and trap questions. Answers are graded by code, with
+no LLM judge. Retrieval is measured in CI on every push, with the real
+embedding model and pgvector:
+
+| Retrieval | hit@1 | hit@5 | MRR@10 |
+|---|---|---|---|
+| hybrid (RRF) | 0.69 | 0.89 | 0.78 |
+| semantic only | 0.57 | 0.83 | 0.67 |
+| lexical only | 0.31 | 0.31 | 0.31 |
+
+Lower bounds are pinned in the test, so worse retrieval fails the build. The
+full agent run over the questions (`make eval-agent`) is written but has not
+been run yet: it is paid, and there is no API key so far.
+
+**The endpoint.** A repeated question within an hour is served from cache;
+two identical questions arriving at once share one agent pass
+(single-flight). Rate limit: 5 questions a minute per address and 30 a minute
+in total, then 429 with `Retry-After`. The response shape below comes from
+the endpoint test on the scripted model; a live answer goes here after the
+first run with a key:
+
+```json
+{
+  "answer": "Жалобу возвращают без рассмотрения в течение двух рабочих дней, если она не соответствует требованиям п. 596 или не подписана уполномоченным лицом (п. 598, https://adilet.zan.kz/rus/docs/V2400035238#z1277).",
+  "stop": "answered",
+  "kind": "docs",
+  "sources": [
+    {"title": "Глава 19. Порядок обжалования … › п. 598", "url": "https://adilet.zan.kz/rus/docs/V2400035238#z1277", "cited": true},
+    {"title": "Глава 19. Порядок обжалования … › п. 599", "url": "https://adilet.zan.kz/rus/docs/V2400035238#z1280", "cited": false}
+  ],
+  "sql": [],
+  "tool_calls": [
+    {"name": "search_docs", "ok": true, "duration_ms": 0},
+    {"name": "search_docs", "ok": true, "duration_ms": 0}
+  ],
+  "steps": 3,
+  "usage": {"model": "claude-haiku-5-5", "input_tokens": 410, "output_tokens": 85, "cost_usd": 0.0000835},
+  "cached": false
+}
+```
+
+To run it, after the quick start and a backfill:
+
+```bash
+make seed-reference
+make assistant-user   # read-only ClickHouse user
+make docs-index       # rules from adilet → pgvector; the ~1.1 GB model downloads once
+# in .env: PA_ASSISTANT__LLM__KIND=anthropic, PA_ASSISTANT__LLM__API_KEY=..., PA_ASSISTANT__API__ENABLED=true
+make api
+curl -X POST localhost:8000/v1/ask -H "Content-Type: application/json" -d '{"question": "В каких случаях жалобу возвращают без рассмотрения?"}'
+make ask q="Топ-5 заказчиков по концентрации за 2025 год"   # same from the command line
+```
 
 ## Measurements
 
@@ -193,6 +301,19 @@ lot with the announcement date from `TrdBuy` at load time.
 **Write quality checks together with the loader.** They arrived at stage
 three; two bugs (a watermark that silently was not saved and an infinite loop
 on December) lived until they were expensive to find.
+
+**Pick the retrieval threshold by measurement, not by feel.** I set the
+semantic distance cutoff to 0.6 before the evals existed. The first run
+showed it cut nothing, and that distance cannot tell an unanswerable
+question apart at all: the closest chunk to such a question (0.242) is closer
+than the median correct one (0.264). The cutoff is now 0.5 and drops only
+obvious noise; saying "the documents do not cover this" is the model's job
+after reading what was found.
+
+**Get the API key before writing the agent eval.** Retrieval metrics are free
+and run in CI, but they say nothing about whether the answer is right. The
+part of the evals that checks that is written and tested on the fake model,
+but has not run on the real one yet.
 
 ## A note on conclusions
 

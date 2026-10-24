@@ -42,10 +42,17 @@ class ApiError(Exception):
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal_error"
 
-    def __init__(self, message: str, *, details: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: list[dict[str, Any]] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
+        self.headers = headers
 
 
 class NotFoundError(ApiError):
@@ -69,6 +76,38 @@ class StorageUnavailableError(ApiError):
     code = "storage_unavailable"
 
 
+class TooManyRequestsError(ApiError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after_s: int) -> None:
+        super().__init__(message, headers={"Retry-After": str(retry_after_s)})
+
+
+class AssistantDisabledError(ApiError):
+    """Ручка /ask выключена настройкой: модели, ключа или индекса на стенде нет."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "assistant_disabled"
+
+
+class ModelUnavailableError(ApiError):
+    """Модель перегружена, просит сбавить темп или не ответила — стоит повторить позже."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "model_unavailable"
+
+
+class ModelFailedError(ApiError):
+    """Модель вернула ошибку, которую повтор не исправит: ключ, запрос, формат ответа.
+
+    502, а не 500: сломался не наш процесс, а сервис за ним. Подробности — в лог.
+    """
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "model_failed"
+
+
 def _body(code: str, message: str, details: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     return ErrorResponse(error=ErrorBody(code=code, message=message, details=details)).model_dump(
         exclude_none=True
@@ -83,6 +122,7 @@ def install_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=error.status_code,
             content=_body(error.code, error.message, error.details),
+            headers=error.headers,
         )
 
     @app.exception_handler(RequestValidationError)

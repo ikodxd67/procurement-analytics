@@ -74,6 +74,8 @@ class ToolCall:
     is_error: bool
     duration_ms: int
     result_chars: int
+    output: Any = None
+    """Результат инструмента до перевода в текст (``Executed.value``); у ошибки — None."""
 
 
 @dataclass
@@ -176,7 +178,8 @@ class Agent:
 
     async def _call(self, use: ToolUse, answer: AgentAnswer) -> ToolResult:
         started = time.perf_counter()
-        result = await self._toolbox.execute(use)
+        executed = await self._toolbox.run(use)
+        result = executed.result
         answer.tool_calls.append(
             ToolCall(
                 name=use.name,
@@ -184,6 +187,7 @@ class Agent:
                 is_error=result.is_error,
                 duration_ms=round((time.perf_counter() - started) * 1000),
                 result_chars=len(result.content),
+                output=executed.value,
             )
         )
         return result

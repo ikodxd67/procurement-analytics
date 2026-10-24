@@ -5,8 +5,8 @@ evals). Индексируется снимок правил из репозит
 и эталоны — evals/questions.toml. Отчёт пишется в evals/reports/retrieval-ci.md
 и в сводку задачи CI.
 
-Нижние границы метрик (MIN_*) поставлены по первому замеру в CI, с запасом на
-случайность порядка при равных оценках, — чтобы регресс поиска ронял сборку,
+Нижние границы метрик (MIN_*) поставлены по первому замеру в CI (b259884), с
+запасом на порядок при равных оценках, — чтобы регресс поиска ронял сборку,
 а не проходил тихо.
 
 Помечены evals: нужны Docker и модель (~1.1 ГБ, кэшируется).
@@ -38,6 +38,8 @@ pytestmark = pytest.mark.evals
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPORT = SNAPSHOT_DIR.parent / "reports" / "retrieval-ci.md"
 NGR = "V2400035238"
+MIN_HYBRID_HIT5 = 0.84
+MIN_HYBRID_MRR = 0.73
 
 
 @pytest.fixture(scope="module")
@@ -74,6 +76,11 @@ async def test_retrieval_quality(sessions: async_sessionmaker[AsyncSession]) -> 
     print(report.render())
 
     hybrid = report.modes[SearchMode.HYBRID]
-    # Первый прогон — замер: границы ниже ставятся по его цифрам.
-    assert hybrid.results, "в наборе нет вопросов с эталоном"
-    assert 0.0 <= hybrid.mrr <= 1.0
+    lexical = report.modes[SearchMode.LEXICAL]
+    semantic = report.modes[SearchMode.SEMANTIC]
+    # Первый замер (CI, b259884): hybrid hit@5 0.89, MRR 0.78; semantic 0.83 / 0.67;
+    # lexical 0.31 / 0.31. Границы — с запасом ~0.05 на равные оценки.
+    assert hybrid.hit_at(5) >= MIN_HYBRID_HIT5, report.render()
+    assert hybrid.mrr >= MIN_HYBRID_MRR, report.render()
+    # Ради чего гибрид: слияние обязано быть не хуже каждого поиска по отдельности.
+    assert hybrid.mrr >= max(lexical.mrr, semantic.mrr), report.render()
